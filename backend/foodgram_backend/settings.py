@@ -14,7 +14,12 @@ SECRET_KEY = os.getenv("DJANGO_SECRET")
 
 DEBUG = os.getenv("DEBUG")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "testserver",
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -23,6 +28,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_filters",
     "rest_framework.authtoken",
     "rest_framework",
     "djoser",
@@ -122,6 +128,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 6,
+    "SEARCH_PARAM": "name",
 }
 
 AUTH_USER_MODEL = "users.User"
@@ -136,6 +143,11 @@ DJOSER = {
         "user_create": "api.serializers.CustomUserCreateSerializer",
     },
     "LOGIN_FIELD": "email",
+    "PERMISSIONS": {
+        "user_list": ["rest_framework.permissions.AllowAny"],
+        "user": ["rest_framework.permissions.IsAuthenticated"],
+    },
+    "HIDE_USERS": False,
 }
 
 RESERVED_USERNAMES = [

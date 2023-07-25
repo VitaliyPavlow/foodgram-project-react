@@ -8,13 +8,19 @@ MAX_LENGHT_USER_EMAIL = 254
 MAX_LENGHT_USER_FIRST = 150
 MAX_LENGHT_USER_LAST = 150
 MAX_LENGHT_USER_PASSWORD = 150
+MAX_LENGHT_USER_USERNAME = 150
 
 
 class User(AbstractUser):
-    email = models.EmailField(
-        "Email",
+    username = models.CharField(
+        max_length=MAX_LENGHT_USER_USERNAME,
         unique=True,
-        max_length=MAX_LENGHT_USER_EMAIL,
+        validators=[validate_username, validate_username_bad_sign],
+        error_messages={"unique": "Введите правильное имя пользователя."},
+        verbose_name="Имя пользователя",
+    )
+    email = models.EmailField(
+        "Email", max_length=MAX_LENGHT_USER_EMAIL, unique=True
     )
     first_name = models.CharField("Имя", max_length=MAX_LENGHT_USER_FIRST)
     last_name = models.CharField("Фамилия", max_length=MAX_LENGHT_USER_LAST)
@@ -23,6 +29,7 @@ class User(AbstractUser):
     class Meta:
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
+        ordering = ("username",)
 
     def __str__(self):
         return self.username

@@ -1,10 +1,17 @@
 import datetime
 
+from django_filters.rest_framework import DjangoFilterBackend
+from djoser.views import UserViewSet
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
-from rest_framework import filters, generics, status, viewsets
-from rest_framework.permissions import AllowAny
+from rest_framework import filters, generics, serializers, status, viewsets
+from rest_framework.decorators import action, permission_classes
+from rest_framework.permissions import (
+    AllowAny,
+    IsAuthenticated,
+    IsAuthenticatedOrReadOnly,
+)
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -23,9 +30,10 @@ from recipe.models import (
 )
 from users.models import Subscription, User
 
-from .pagination import SubscribePagination
+from .filters import RecipeFilter
+from .pagination import PageLimitPagination
+from .permissions import IsAuthor
 from .serializers import (
-    CustomUserSerializer,
     IngredientSerializer,
     RecipeSerializer,
     RecipeSubscriptionSerializer,
@@ -42,8 +50,71 @@ class TagViewSet(viewsets.ModelViewSet):
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
+    pagination_class = PageLimitPagination
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = RecipeFilter
+    permission_classes = [IsAuthenticatedOrReadOnly, IsAuthor]
+
+    def get_queryset(self):
+        return Recipe.objects.all().prefetch_related(
+            "favored_by", "shopping_cart"
+        )
+
+    def perform_create(self, serializer):
+        tag_pk = self.request.data.pop("tags", [])
+        ingredients_list = self.request.data.pop("ingredients", [])
+
+        if not tag_pk:
+            raise serializers.ValidationError({"tags": ["Обязательное поле."]})
+        if not ingredients_list:
+            raise serializers.ValidationError(
+                {"ingredients": ["Обязательное поле."]}
+            )
+
+        tags = Tag.objects.filter(pk__in=tag_pk)
+        recipe = serializer.save()
+        for ingredient in ingredients_list:
+            amount = ingredient["amount"]
+            ingredient_obj = get_object_or_404(Ingredient, pk=ingredient["id"])
+            RecipeIngredient.objects.create(
+                recipe=recipe, ingredient=ingredient_obj, amount=amount
+            )
+        recipe.tags.set(tags)
+
+    def partial_update(self, request, *args, **kwargs):
+        if "tags" in request.data.keys() and not request.data["tags"]:
+            raise serializers.ValidationError({"tags": ["Обязательное поле."]})
+        recipe = get_object_or_404(Recipe, pk=kwargs["pk"])
+        tag_pk = self.request.data.pop("tags", [])
+        tags = Tag.objects.filter(pk__in=tag_pk)
+        recipe.tags.set(tags)
+
+        ingredients_list = self.request.data.pop("ingredients", [])
+        for ingredient in ingredients_list:
+            amount = ingredient["amount"]
+            if amount < 1:
+                raise serializers.ValidationError(
+                    {
+                        "amount": [
+                            "Убедитесь, что это значение больше либо равно 1."
+                        ]
+                    }
+                )
+            ingredient_obj = get_object_or_404(Ingredient, pk=ingredient["id"])
+
+            try:
+                recipe_ingredient = RecipeIngredient.objects.get(
+                    recipe=recipe, ingredient=ingredient_obj
+                )
+                recipe_ingredient.amount = amount
+                recipe_ingredient.save()
+            except RecipeIngredient.DoesNotExist:
+                RecipeIngredient.objects.create(
+                    recipe=recipe, ingredient=ingredient_obj, amount=amount
+                )
+
+        return super().partial_update(request, *args, **kwargs)
 
 
 class IngredientViewSet(viewsets.ModelViewSet):
@@ -57,16 +128,24 @@ class IngredientViewSet(viewsets.ModelViewSet):
 
 class SubscribesListView(generics.ListAPIView):
     serializer_class = SubscriptionsSerializer
-    pagination_class = SubscribePagination
+    pagination_class = PageLimitPagination
+    permission_classes = [
+        IsAuthenticated,
+    ]
 
     def get_queryset(self):
-        return User.objects.filter(following__user=self.request.user)
+        return User.objects.filter(
+            following__user=self.request.user
+        ).prefetch_related("following", "recipes")
 
 
 class SubscribeUnsubscribeView(
     generics.CreateAPIView, generics.DestroyAPIView
 ):
     serializer_class = SubscriptionsSerializer
+    permission_classes = [
+        IsAuthenticated,
+    ]
 
     def post(self, request, *args, **kwargs):
         author = get_object_or_404(User, id=kwargs["id"])
@@ -105,6 +184,9 @@ class SubscribeUnsubscribeView(
 
 class FavoriteView(generics.CreateAPIView, generics.DestroyAPIView):
     serializer_class = RecipeSubscriptionSerializer
+    permission_classes = [
+        IsAuthenticated,
+    ]
 
     def post(self, request, *args, **kwargs):
         recipe = get_object_or_404(Recipe, id=kwargs["id"])
@@ -137,24 +219,25 @@ class FavoriteView(generics.CreateAPIView, generics.DestroyAPIView):
 
 
 class ShoppingCartView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
     def get_ingredients_list(self):
-        ingredients_unique_pk = set()
         ingredients_list = []
-        recipes_list = Recipe.objects.filter(
-            shoppinng_cart__user=self.request.user
+
+        recipe_ingredients = RecipeIngredient.objects.filter(
+            recipe__shopping_cart__user=self.request.user
         )
-        for recipe in recipes_list:
-            {
-                ingredients_unique_pk.add(ingredient.ingredient.pk)
-                for ingredient in recipe.recipe_ingredient.all()
-            }
-        for pk in ingredients_unique_pk:
-            ingredient = Ingredient.objects.get(pk=pk)
-            amount = RecipeIngredient.objects.filter(
-                ingredient=pk, recipe__in=recipes_list
+        unique_ingredients = set(i.ingredient for i in recipe_ingredients)
+
+        for ingredient in unique_ingredients:
+            amount = recipe_ingredients.filter(
+                ingredient=ingredient
             ).aggregate(Sum("amount"))
-            string = f"\u2611 {ingredient.name} ({ingredient.measurement_unit}) - {int(amount['amount__sum'])}"
+            string = f"\u2611   {ingredient.name} ({ingredient.measurement_unit}) - {int(amount['amount__sum'])}"
             ingredients_list.append(string)
+
         return ingredients_list
 
     def get(self, request, *args, **kwargs):
@@ -186,6 +269,9 @@ class ShoppingCartCreateDeleteView(
     generics.CreateAPIView, generics.DestroyAPIView
 ):
     serializer_class = RecipeSubscriptionSerializer
+    permission_classes = [
+        IsAuthenticated,
+    ]
 
     def post(self, request, *args, **kwargs):
         recipe = get_object_or_404(Recipe, id=kwargs["id"])
@@ -215,3 +301,7 @@ class ShoppingCartCreateDeleteView(
                 {"errors": "Вы ещё не добавили этот рецепт в список покупок."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class UsersListView(UserViewSet):
+    pagination_class = PageLimitPagination

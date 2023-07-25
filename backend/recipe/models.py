@@ -11,7 +11,7 @@ from .validators import hex_color_validator
 
 MAX_LENGTH_TAG_NAME = 50
 MAX_LENGTH_TAG_COLOR = 7
-MAX_LENGTH_RECIPE_NAME = 100
+MAX_LENGTH_RECIPE_NAME = 200
 MAX_LENGTH_INGREDIENT_NAME = 100
 MAX_LENGTH_INGREDIENT_MEASUREMENT_UNIT = 100
 
@@ -77,13 +77,13 @@ class ShoppingCart(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="shoppinng_cart",
+        related_name="shopping_cart",
         default=None,
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
-        related_name="shoppinng_cart",
+        related_name="shopping_cart",
         default=None,
     )
 
@@ -118,7 +118,9 @@ class RecipeIngredient(models.Model):
     recipe = models.ForeignKey(
         Recipe, on_delete=models.CASCADE, related_name="recipe_ingredient"
     )
-    ingredient = models.ForeignKey(Ingredient, on_delete=models.PROTECT)
+    ingredient = models.ForeignKey(
+        Ingredient, on_delete=models.PROTECT, related_name="recipe_ingredient"
+    )
     amount = models.DecimalField(
         "Количество",
         max_digits=8,
