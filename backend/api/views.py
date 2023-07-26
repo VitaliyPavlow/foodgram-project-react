@@ -233,7 +233,10 @@ class ShoppingCartView(APIView):
             amount = recipe_ingredients.filter(
                 ingredient=ingredient
             ).aggregate(Sum("amount"))
-            string = f"\u2611   {ingredient.name} ({ingredient.measurement_unit}) - {int(amount['amount__sum'])}"
+            string = (
+                f"\u2611   {ingredient.name} ({ingredient.measurement_unit}) "
+                f"- {int(amount['amount__sum'])}"
+            )
             ingredients_list.append(string)
 
         return ingredients_list
