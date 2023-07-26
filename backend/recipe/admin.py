@@ -15,17 +15,99 @@ from .models import (
 from .validators import hex_color_validator
 
 
+class RecipeAuthorFilter(admin.SimpleListFilter):
+    title = "Автор"
+    parameter_name = "author"
+
+    def lookups(self, request, model_admin):
+        return [
+            (author, author)
+            for author in Recipe.objects.order_by()
+            .values_list("author__username", flat=True)
+            .distinct()
+        ]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value:
+            return queryset.filter(author__username=value)
+        return queryset
+
+
+class RecipeNameFilter(admin.SimpleListFilter):
+    title = "Рецепт"
+    parameter_name = "name"
+
+    def lookups(self, request, model_admin):
+        return [
+            (name, name)
+            for name in Recipe.objects.order_by()
+            .values_list("name", flat=True)
+            .distinct()
+        ]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value:
+            return queryset.filter(name=value)
+        return queryset
+
+
+class RecipeTagFilter(admin.SimpleListFilter):
+    title = "Тэги"
+    parameter_name = "tags"
+
+    def lookups(self, request, model_admin):
+        return [
+            (tags, tags)
+            for tags in Recipe.objects.order_by()
+            .values_list("tags__name", flat=True)
+            .distinct()
+        ]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value:
+            return queryset.filter(tags__name=value)
+        return queryset
+
+
+class IngredientFilter(admin.SimpleListFilter):
+    title = "Ингредиенты"
+    parameter_name = "name"
+
+    def lookups(self, request, model_admin):
+        return [
+            (name, name)
+            for name in Ingredient.objects.order_by()
+            .values_list("name", flat=True)
+            .distinct()
+        ]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value:
+            return queryset.filter(name=value)
+        return queryset
+
+
 class RecipeIngredientInline(admin.TabularInline):
     model = RecipeIngredient
     extra = 1
 
 
 class RecipeAdmin(admin.ModelAdmin):
-    list_display = ("author", "name", "display_image", "text", "cooking_time")
+    list_display = (
+        "name",
+        "author",
+        "display_image",
+        "text",
+        "cooking_time",
+        "pub_date",
+        "favorite_count",
+    )
     inlines = [RecipeIngredientInline]
-
-    # def display_image(self, obj):
-    #     return obj.image.url if obj.image else ''
+    list_filter = (RecipeAuthorFilter, RecipeNameFilter, RecipeTagFilter)
 
     def display_image(self, obj):
         if obj.image:
@@ -38,9 +120,18 @@ class RecipeAdmin(admin.ModelAdmin):
 
     display_image.short_description = "Image"
 
+    def favorite_count(self, obj):
+        return obj.favored_by.count()
+
+    favorite_count.short_description = "Добавлено в избранное"
+
 
 class IngredientAdmin(admin.ModelAdmin):
     list_display = ("name", "measurement_unit")
+    search_fields = ["name"]
+    list_filter = [
+        IngredientFilter,
+    ]
 
 
 class TagAdminForm(forms.ModelForm):

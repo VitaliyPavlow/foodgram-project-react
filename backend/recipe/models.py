@@ -17,8 +17,6 @@ MAX_LENGTH_INGREDIENT_MEASUREMENT_UNIT = 100
 
 
 class Tag(models.Model):
-    """Модель Тэга."""
-
     name = models.CharField("Тэг", max_length=MAX_LENGTH_TAG_NAME, unique=True)
     color = models.CharField(
         max_length=MAX_LENGTH_TAG_COLOR,
@@ -41,8 +39,6 @@ class Tag(models.Model):
 
 
 class Recipe(models.Model):
-    """Модель Рецепта."""
-
     author = models.ForeignKey(
         User,
         on_delete=models.SET_DEFAULT,
@@ -72,8 +68,6 @@ class Recipe(models.Model):
 
 
 class ShoppingCart(models.Model):
-    """Модель списка покупок."""
-
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -92,12 +86,13 @@ class ShoppingCart(models.Model):
         verbose_name_plural = "Списки покупок"
 
     def __str__(self):
-        return f"Пользователь {self.user.first_name} {self.user.last_name} добавил рецепт {self.recipe} в список покупок."
+        return (
+            f"Пользователь {self.user.first_name} {self.user.last_name}"
+            f" добавил рецепт {self.recipe} в список покупок."
+        )
 
 
 class Ingredient(models.Model):
-    """Модель ингредиента."""
-
     name = models.CharField(
         "Ингредиент", max_length=MAX_LENGTH_INGREDIENT_NAME
     )
@@ -140,12 +135,13 @@ class RecipeIngredient(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.recipe.name}: {self.ingredient.name} {self.amount} {self.ingredient.measurement_unit}."
+        return (
+            f"{self.recipe.name}: {self.ingredient.name}"
+            f" {self.amount} {self.ingredient.measurement_unit}."
+        )
 
 
 class Favorite(models.Model):
-    """Модель избранного."""
-
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -169,4 +165,7 @@ class Favorite(models.Model):
         ]
 
     def __str__(self):
-        return f"Рецепт {self.recipe.name} в избранном у пользователя {self.user.first_name} {self.user.last_name}."
+        return (
+            f"Рецепт {self.recipe.name} в избранном у "
+            f"пользователя {self.user.first_name} {self.user.last_name}."
+        )

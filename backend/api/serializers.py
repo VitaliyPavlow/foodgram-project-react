@@ -6,22 +6,17 @@ from djoser.serializers import (
     UserSerializer,
 )
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
 from django.contrib.auth.models import AnonymousUser
 from django.core.files.base import ContentFile
-from django.core.validators import MinValueValidator
-from django.shortcuts import get_object_or_404
 
 from recipe.models import (
-    Favorite,
     Ingredient,
     Recipe,
     RecipeIngredient,
-    ShoppingCart,
     Tag,
 )
-from users.models import Subscription, User
+from users.models import User
 from users.validators import validate_username, validate_username_bad_sign
 
 
@@ -118,12 +113,6 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
         representation["amount"] = float(amount)
         return representation
 
-    # def create(self, validated_data):
-    #     amount = validated_data.get("amount")
-    #     if amount < 1:
-    #         raise serializers.ValidationError({"amount": ["Убедитесь, что это значение больше либо равно 1."]})
-    #     return super().create(validated_data)
-
 
 class RecipeSerializer(serializers.ModelSerializer):
     author = CustomUserSerializer(read_only=True)
@@ -139,20 +128,9 @@ class RecipeSerializer(serializers.ModelSerializer):
         validated_data.pop("recipe_ingredient")
         return super().create(validated_data)
 
-    def update(self, instance, validated_data):
-        # validated_data.pop("recipe_ingredient")
-        return super().update(instance, validated_data)
-
     def save(self, **kwargs):
         self.validated_data["author"] = self.context["request"].user
         return super().save(**kwargs)
-
-    # def to_internal_value(self, data):
-    #     tags_data = data.pop('tags', [])
-    #     validated_data = super().to_internal_value(data)
-    #     tags_obj = Tag.objects.filter(pk__in=tags_data)
-    #     validated_data['tags'] = tags_obj
-    #     return validated_data
 
     def get_is_favorited(self, obj):
         user = self.context["request"].user
