@@ -1,22 +1,17 @@
 import csv
+import inspect
 
+from django.apps import apps
 from django.core.management.base import BaseCommand
-
-from recipe.models import Ingredient
-
-
-models = [Ingredient]
 
 
 class Command(BaseCommand):
     """
     Менеджмент-команда для импорта из csv-файлов в базу данных.
     Пример использования в командной строке:
-    python manage.py import_csv Genre static/data/genre.csv
-    Genre - модель, в которую импортируем.
-    static/data/genre.csv - путь где находится csv-файл
-    Перед импортом убедитесь, что первая строчка
-    csv-файла содержит названия полей модели.
+    python manage.py import_csv Ingredient ../data/ingredients.csv
+    Ingredient - модель, в которую импортируем.
+    ../data/ingredients.csv - путь где находится csv-файл.
     """
 
     def add_arguments(self, parser):
@@ -27,11 +22,7 @@ class Command(BaseCommand):
         model_name = kwargs["model"]
         csv_file_path = kwargs["csv_file"]
 
-        model_class = None
-        for m in models:
-            if m.__name__.lower() == model_name.lower():
-                model_class = m
-                break
+        model_class = apps.get_model("recipe", model_name)
 
         if not model_class:
             self.stdout.write(
@@ -47,4 +38,13 @@ class Command(BaseCommand):
 
             model_class.objects.bulk_create(rows)
 
-        self.stdout.write(self.style.SUCCESS("Data imported successfully"))
+        self.stdout.write(self.style.SUCCESS("Данные успешно импортированы."))
+
+
+models = []
+
+for model in apps.get_models():
+    if not inspect.isabstract(model):
+        models.append(model)
+
+Command.models = models

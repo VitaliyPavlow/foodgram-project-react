@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from .validators import validate_username, validate_username_bad_sign
@@ -22,7 +23,7 @@ class User(AbstractUser):
     email = models.EmailField(
         "Email", max_length=MAX_LENGHT_USER_EMAIL, unique=True
     )
-    first_name = models.CharField("Имя", max_length=MAX_LENGHT_USER_FIRST)
+    first_name = models.CharField("Имя",max_length=MAX_LENGHT_USER_FIRST)
     last_name = models.CharField("Фамилия", max_length=MAX_LENGHT_USER_LAST)
     password = models.CharField("Пароль", max_length=MAX_LENGHT_USER_PASSWORD)
 
@@ -36,8 +37,6 @@ class User(AbstractUser):
 
 
 class Subscription(models.Model):
-    """Модель подписки."""
-
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -51,14 +50,19 @@ class Subscription(models.Model):
         verbose_name="Автор",
     )
 
-    def __str__(self):
-        return f"{self.user} подписан на {self.author}."
-
     class Meta:
         verbose_name = "Подписка"
         verbose_name_plural = "Подписки"
         constraints = [
             models.UniqueConstraint(
-                fields=["user", "author"], name="unique_subscription"
+                fields=["user", "author"], name="uq_user_author"
             )
         ]
+
+    def __str__(self):
+        return f"{self.user} подписан на {self.author}."
+
+    def clean(self):
+        if self.user == self.author:
+            raise ValidationError("Нельзя подписаться на самого себя.")
+        return super().clean()

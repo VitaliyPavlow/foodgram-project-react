@@ -2,7 +2,6 @@ import re
 
 import django_filters
 
-from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest
 
 from recipe.models import Recipe
@@ -16,7 +15,7 @@ class RecipeFilter(django_filters.FilterSet):
     tags = django_filters.CharFilter(method="filter_is_tags")
 
     def filter_is_favorited(self, queryset, name, value):
-        if type(self.request.user) == AnonymousUser:
+        if not self.request.user.is_authenticated:
             return queryset.none()
         param = {"favored_by__user": self.request.user}
         if value:
@@ -27,7 +26,7 @@ class RecipeFilter(django_filters.FilterSet):
         return queryset
 
     def filter_is_in_shopping_cart(self, queryset, name, value):
-        if type(self.request.user) == AnonymousUser:
+        if not self.request.user.is_authenticated:
             return queryset.none()
         param = {"shopping_cart__user": self.request.user}
         if value:

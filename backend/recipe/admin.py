@@ -5,12 +5,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from .models import (
-    Favorite,
-    Ingredient,
-    Recipe,
-    RecipeIngredient,
-    ShoppingCart,
-    Tag,
+    Favorite, Ingredient, Recipe, RecipeIngredient, ShoppingCart, Tag,
 )
 from .validators import hex_color_validator
 
@@ -96,6 +91,7 @@ class RecipeIngredientInline(admin.TabularInline):
     extra = 1
 
 
+@admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     list_display = (
         "name",
@@ -109,14 +105,17 @@ class RecipeAdmin(admin.ModelAdmin):
     inlines = [RecipeIngredientInline]
     list_filter = (RecipeAuthorFilter, RecipeNameFilter, RecipeTagFilter)
 
+    def get_queryset(self, request):
+        return Recipe.objects.select_related("author").prefetch_related(
+            "ingredients", "tags"
+        )
+
     def display_image(self, obj):
         if obj.image:
             return format_html(
                 '<img src="{}" style="max-width: 100%; max-height: 80px;" />',
                 obj.image.url,
             )
-        else:
-            return ""
 
     display_image.short_description = "Image"
 
@@ -126,6 +125,7 @@ class RecipeAdmin(admin.ModelAdmin):
     favorite_count.short_description = "Добавлено в избранное"
 
 
+@admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
     list_display = ("name", "measurement_unit")
     search_fields = ["name"]
@@ -137,7 +137,7 @@ class IngredientAdmin(admin.ModelAdmin):
 class TagAdminForm(forms.ModelForm):
     class Meta:
         model = Tag
-        fields = "__all__"
+        fields = ("name", "color")
 
     def clean_color(self):
         value = self.cleaned_data.get("color")
@@ -145,27 +145,25 @@ class TagAdminForm(forms.ModelForm):
         return value
 
 
+@admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
     list_display = ("name", "color", "slug")
     form = TagAdminForm
 
 
+@admin.register(RecipeIngredient)
 class RecipeIngredientAdmin(admin.ModelAdmin):
     list_display = ("ingredient", "recipe", "amount")
 
 
+@admin.register(Favorite)
 class FavoriteAdmin(admin.ModelAdmin):
     list_display = ("user", "recipe")
 
 
+@admin.register(ShoppingCart)
 class ShoppingCartAdmin(admin.ModelAdmin):
     list_display = ("user", "recipe")
 
 
-admin.site.register(Recipe, RecipeAdmin)
-admin.site.register(Ingredient, IngredientAdmin)
-admin.site.register(Tag, TagAdmin)
-admin.site.register(RecipeIngredient, RecipeIngredientAdmin)
-admin.site.register(Favorite, FavoriteAdmin)
-admin.site.register(ShoppingCart, ShoppingCartAdmin)
 admin.site.unregister(TokenProxy)

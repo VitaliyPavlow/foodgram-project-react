@@ -43,6 +43,7 @@ class UsernameFilter(admin.SimpleListFilter):
         return queryset
 
 
+@admin.register(User)
 class CustomUserAdmin(UserAdmin):
     list_display = ("username", "id", "email", "first_name", "last_name")
     list_filter = (EmailFilter, UsernameFilter)
@@ -77,10 +78,12 @@ class CustomUserAdmin(UserAdmin):
     )
 
 
+@admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
     list_display = ("user", "author")
 
+    def get_queryset(self, request):
+        return Subscription.objects.select_related("user")
 
-admin.site.register(User, CustomUserAdmin)
-admin.site.register(Subscription, SubscriptionAdmin)
+
 admin.site.unregister(Group)

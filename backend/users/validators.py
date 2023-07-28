@@ -1,12 +1,12 @@
 import re
 
-from django.core.exceptions import ValidationError
+from foodgram_backend import settings
 
-from foodgram_backend.settings import RESERVED_USERNAMES
+from django.core.exceptions import ValidationError
 
 
 def validate_username(name):
-    if name in RESERVED_USERNAMES:
+    if name in settings.RESERVED_USERNAMES:
         raise ValidationError(f"Имя пользователя не может быть {name}.")
 
 

@@ -7,24 +7,17 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from rest_framework import filters, generics, serializers, status, viewsets
 from rest_framework.permissions import (
-    IsAuthenticated,
-    IsAuthenticatedOrReadOnly,
+    IsAuthenticated, IsAuthenticatedOrReadOnly,
 )
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 
 from recipe.models import (
-    Favorite,
-    Ingredient,
-    Recipe,
-    RecipeIngredient,
-    ShoppingCart,
-    Tag,
+    Favorite, Ingredient, Recipe, RecipeIngredient, ShoppingCart, Tag,
 )
 from users.models import Subscription, User
 
@@ -32,11 +25,8 @@ from .filters import RecipeFilter
 from .pagination import PageLimitPagination
 from .permissions import IsAuthor
 from .serializers import (
-    IngredientSerializer,
-    RecipeSerializer,
-    RecipeSubscriptionSerializer,
-    SubscriptionsSerializer,
-    TagSerializer,
+    IngredientSerializer, RecipeSerializer, RecipeSubscriptionSerializer,
+    SubscriptionsSerializer, TagSerializer,
 )
 
 
@@ -55,8 +45,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly, IsAuthor]
 
     def get_queryset(self):
-        return Recipe.objects.all().prefetch_related(
-            "favored_by", "shopping_cart"
+        return Recipe.objects.select_related("author").prefetch_related(
+            "tags", "ingredients"
         )
 
     def perform_create(self, serializer):
@@ -81,12 +71,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
         recipe.tags.set(tags)
 
     def partial_update(self, request, *args, **kwargs):
-        if "tags" in request.data.keys() and not request.data["tags"]:
-            raise serializers.ValidationError({"tags": ["Обязательное поле."]})
         recipe = get_object_or_404(Recipe, pk=kwargs["pk"])
-        tag_pk = self.request.data.pop("tags", [])
-        tags = Tag.objects.filter(pk__in=tag_pk)
-        recipe.tags.set(tags)
+        if "tags" in request.data.keys():
+            if not request.data["tags"]:
+                raise serializers.ValidationError(
+                    {"tags": ["Обязательное поле."]}
+                )
+            tag_pk = self.request.data.pop("tags", [])
+            tags = Tag.objects.filter(pk__in=tag_pk)
+            recipe.tags.set(tags)
 
         ingredients_list = self.request.data.pop("ingredients", [])
         for ingredient in ingredients_list:
@@ -101,16 +94,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 )
             ingredient_obj = get_object_or_404(Ingredient, pk=ingredient["id"])
 
-            try:
-                recipe_ingredient = RecipeIngredient.objects.get(
-                    recipe=recipe, ingredient=ingredient_obj
-                )
+            recipe_ingredient, create = RecipeIngredient.objects.get_or_create(
+                recipe=recipe,
+                ingredient=ingredient_obj,
+                defaults={"amount": amount},
+            )
+
+            if not create:
                 recipe_ingredient.amount = amount
                 recipe_ingredient.save()
-            except RecipeIngredient.DoesNotExist:
-                RecipeIngredient.objects.create(
-                    recipe=recipe, ingredient=ingredient_obj, amount=amount
-                )
 
         return super().partial_update(request, *args, **kwargs)
 
@@ -132,9 +124,11 @@ class SubscribesListView(generics.ListAPIView):
     ]
 
     def get_queryset(self):
-        return User.objects.filter(
-            following__user=self.request.user
-        ).prefetch_related("following", "recipes")
+        return (
+            User.objects.filter(following__user=self.request.user)
+            .prefetch_related("following", "recipes")
+            .annotate(recipes_count=Count("recipes"))
+        )
 
 
 class SubscribeUnsubscribeView(
@@ -161,23 +155,24 @@ class SubscribeUnsubscribeView(
                 {"errors": "Подписка уже существует."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        author = User.objects.annotate(recipes_count=Count("recipes")).get(
+            id=author.id
+        )
         serializer = self.get_serializer(
             author, context={"request": self.request}
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, *args, **kwargs):
-        author = get_object_or_404(User, id=kwargs["id"])
-        user = self.request.user
-        try:
-            subscription = Subscription.objects.get(user=user, author=author)
-            subscription.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except ObjectDoesNotExist:
+        deleted = Subscription.objects.filter(
+            author__id=kwargs["id"], user=self.request.user
+        ).delete()
+        if deleted[0] == 0:
             return Response(
                 {"errors": "Вы не подписаны на этого автора."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class FavoriteView(generics.CreateAPIView, generics.DestroyAPIView):
@@ -203,17 +198,15 @@ class FavoriteView(generics.CreateAPIView, generics.DestroyAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, *args, **kwargs):
-        recipe = get_object_or_404(Recipe, id=kwargs["id"])
-        user = self.request.user
-        try:
-            favorite = Favorite.objects.get(user=user, recipe=recipe)
-            favorite.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except ObjectDoesNotExist:
+        deleted = Favorite.objects.filter(
+            user=self.request.user, recipe__id=kwargs["id"]
+        ).delete()
+        if deleted[0] == 0:
             return Response(
                 {"errors": "Вы ещё не добавили этот рецепт в избранное."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ShoppingCartView(APIView):
@@ -223,22 +216,22 @@ class ShoppingCartView(APIView):
 
     def get_ingredients_list(self):
         ingredients_list = []
-
-        recipe_ingredients = RecipeIngredient.objects.filter(
-            recipe__shopping_cart__user=self.request.user
+        unique_ingredients = (
+            Ingredient.objects.filter(
+                recipe_ingredient__recipe__shopping_cart__user=self.request.user
+            )
+            .distinct()
+            .prefetch_related("recipe_ingredient")
         )
-        unique_ingredients = set(i.ingredient for i in recipe_ingredients)
-
         for ingredient in unique_ingredients:
-            amount = recipe_ingredients.filter(
-                ingredient=ingredient
-            ).aggregate(Sum("amount"))
+            amount = ingredient.recipe_ingredient.all().aggregate(
+                Sum("amount")
+            )
             string = (
                 f"\u2611   {ingredient.name} ({ingredient.measurement_unit}) "
                 f"- {int(amount['amount__sum'])}"
             )
             ingredients_list.append(string)
-
         return ingredients_list
 
     def get(self, request, *args, **kwargs):
@@ -248,21 +241,21 @@ class ShoppingCartView(APIView):
             "Content-Disposition"
         ] = f'attachment; filename="shopping_cart_{date}.pdf"'
         pdfmetrics.registerFont(TTFont("Verdana", "fonts/Verdana.ttf"))
-        p = canvas.Canvas(response)
+        page = canvas.Canvas(response)
 
-        p.setFont("Verdana", 20)
+        page.setFont("Verdana", 20)
         title = f"Ваш список покупок на сегодня {date}"
-        p.drawString(60, 750, title)
-        p.line(60, 730, 500, 730)
+        page.drawString(60, 750, title)
+        page.line(60, 730, 500, 730)
 
-        p.setFont("Verdana", 12)
+        page.setFont("Verdana", 12)
         data = self.get_ingredients_list()
         y = 670
         for string in data:
-            p.drawString(60, y, string)
+            page.drawString(60, y, string)
             y -= 30
-        p.showPage()
-        p.save()
+        page.showPage()
+        page.save()
         return response
 
 
@@ -291,17 +284,15 @@ class ShoppingCartCreateDeleteView(
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, *args, **kwargs):
-        recipe = get_object_or_404(Recipe, id=kwargs["id"])
-        user = self.request.user
-        try:
-            shopping_cart = ShoppingCart.objects.get(user=user, recipe=recipe)
-            shopping_cart.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except ObjectDoesNotExist:
+        deleted = ShoppingCart.objects.filter(
+            user=self.request.user, recipe__id=kwargs["id"]
+        ).delete()
+        if deleted[0] == 0:
             return Response(
                 {"errors": "Вы ещё не добавили этот рецепт в список покупок."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class UsersListView(UserViewSet):
