@@ -23,7 +23,7 @@ class User(AbstractUser):
     email = models.EmailField(
         "Email", max_length=MAX_LENGHT_USER_EMAIL, unique=True
     )
-    first_name = models.CharField("Имя",max_length=MAX_LENGHT_USER_FIRST)
+    first_name = models.CharField("Имя", max_length=MAX_LENGHT_USER_FIRST)
     last_name = models.CharField("Фамилия", max_length=MAX_LENGHT_USER_LAST)
     password = models.CharField("Пароль", max_length=MAX_LENGHT_USER_PASSWORD)
 

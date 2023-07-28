@@ -216,9 +216,10 @@ class ShoppingCartView(APIView):
 
     def get_ingredients_list(self):
         ingredients_list = []
+        user = self.request.user
         unique_ingredients = (
             Ingredient.objects.filter(
-                recipe_ingredient__recipe__shopping_cart__user=self.request.user
+                recipe_ingredient__recipe__shopping_cart__user=user
             )
             .distinct()
             .prefetch_related("recipe_ingredient")
