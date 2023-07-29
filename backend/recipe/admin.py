@@ -1,11 +1,7 @@
-from typing import Any
-
 from rest_framework.authtoken.models import TokenProxy
 
 from django import forms
 from django.contrib import admin
-from django.db.models.query import QuerySet
-from django.http.request import HttpRequest
 from django.utils.html import format_html
 
 from .models import (
