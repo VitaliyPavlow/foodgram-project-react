@@ -137,3 +137,5 @@ media/
 media
 
 mydatabase
+
+.flake8

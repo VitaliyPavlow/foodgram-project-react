@@ -7,7 +7,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from rest_framework import filters, generics, serializers, status, viewsets
 from rest_framework.permissions import (
-    IsAuthenticated, IsAuthenticatedOrReadOnly,
+    IsAuthenticated,
+    IsAuthenticatedOrReadOnly,
 )
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,7 +18,12 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 
 from recipe.models import (
-    Favorite, Ingredient, Recipe, RecipeIngredient, ShoppingCart, Tag,
+    Favorite,
+    Ingredient,
+    Recipe,
+    RecipeIngredient,
+    ShoppingCart,
+    Tag,
 )
 from users.models import Subscription, User
 
@@ -25,8 +31,11 @@ from .filters import RecipeFilter
 from .pagination import PageLimitPagination
 from .permissions import IsAuthor
 from .serializers import (
-    IngredientSerializer, RecipeSerializer, RecipeSubscriptionSerializer,
-    SubscriptionsSerializer, TagSerializer,
+    IngredientSerializer,
+    RecipeSerializer,
+    RecipeSubscriptionSerializer,
+    SubscriptionsSerializer,
+    TagSerializer,
 )
 
 
@@ -217,22 +226,37 @@ class ShoppingCartView(APIView):
     def get_ingredients_list(self):
         ingredients_list = []
         user = self.request.user
-        unique_ingredients = (
-            Ingredient.objects.filter(
-                recipe_ingredient__recipe__shopping_cart__user=user
-            )
-            .distinct()
-            .prefetch_related("recipe_ingredient")
-        )
-        for ingredient in unique_ingredients:
-            amount = ingredient.recipe_ingredient.all().aggregate(
-                Sum("amount")
-            )
+
+        recipe_ingredient_values = RecipeIngredient.objects.filter(
+            recipe__shopping_cart__user=user
+        ).values("ingredient__name", "ingredient__measurement_unit", "amount")
+
+        grouped_values = {}
+
+        for value in recipe_ingredient_values:
+            ingredient_name = value["ingredient__name"]
+            amount = value["amount"]
+
+            if ingredient_name not in grouped_values:
+                grouped_values[ingredient_name] = {
+                    "ingredient__measurement_unit": value[
+                        "ingredient__measurement_unit"
+                    ],
+                    "amount": 0,
+                }
+
+            grouped_values[ingredient_name]["amount"] += amount
+
+        for ingredient_name, value in grouped_values.items():
+            measurement_unit = value["ingredient__measurement_unit"]
+            total_amount = value["amount"]
+
             string = (
-                f"\u2611   {ingredient.name} ({ingredient.measurement_unit}) "
-                f"- {int(amount['amount__sum'])}"
+                f"\u2611   {ingredient_name} ({measurement_unit}) "
+                f"- {total_amount}"
             )
             ingredients_list.append(string)
+
         return ingredients_list
 
     def get(self, request, *args, **kwargs):

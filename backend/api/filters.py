@@ -14,6 +14,10 @@ class RecipeFilter(django_filters.FilterSet):
     )
     tags = django_filters.CharFilter(method="filter_is_tags")
 
+    class Meta:
+        model = Recipe
+        fields = ["author", "tags"]
+
     def filter_is_favorited(self, queryset, name, value):
         if not self.request.user.is_authenticated:
             return queryset.none()
@@ -41,7 +45,3 @@ class RecipeFilter(django_filters.FilterSet):
         matches = re.findall(r"tags=([^&]+)", url)
         tags = [match for match in matches]
         return queryset.filter(tags__slug__in=tags)
-
-    class Meta:
-        model = Recipe
-        fields = ["author", "tags"]

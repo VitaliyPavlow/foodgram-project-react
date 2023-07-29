@@ -1,7 +1,6 @@
 import re
 
-from foodgram_backend import settings
-
+from django.conf import settings
 from django.core.exceptions import ValidationError
 
 

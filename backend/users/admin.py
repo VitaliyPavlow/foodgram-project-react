@@ -83,7 +83,7 @@ class SubscriptionAdmin(admin.ModelAdmin):
     list_display = ("user", "author")
 
     def get_queryset(self, request):
-        return Subscription.objects.select_related("user")
+        return super().get_queryset(request).select_related("user", "author")
 
 
 admin.site.unregister(Group)

@@ -1,7 +1,9 @@
 import base64
 
 from djoser.serializers import (
-    TokenCreateSerializer, UserCreateSerializer, UserSerializer,
+    TokenCreateSerializer,
+    UserCreateSerializer,
+    UserSerializer,
 )
 from rest_framework import serializers
 
@@ -28,13 +30,6 @@ class Base64ImageField(serializers.ImageField):
 class CustomUserSerializer(UserSerializer):
     is_subscribed = serializers.SerializerMethodField(read_only=True)
 
-    def get_is_subscribed(self, obj):
-        if not self.context["request"].user.is_authenticated:
-            return False
-        return (
-            self.context["request"].user.follower.filter(author=obj).exists()
-        )
-
     class Meta:
         model = User
         fields = (
@@ -44,6 +39,13 @@ class CustomUserSerializer(UserSerializer):
             "first_name",
             "last_name",
             "is_subscribed",
+        )
+
+    def get_is_subscribed(self, obj):
+        if not self.context["request"].user.is_authenticated:
+            return False
+        return (
+            self.context["request"].user.follower.filter(author=obj).exists()
         )
 
 

@@ -1,11 +1,20 @@
+from typing import Any
+
 from rest_framework.authtoken.models import TokenProxy
 
 from django import forms
 from django.contrib import admin
+from django.db.models.query import QuerySet
+from django.http.request import HttpRequest
 from django.utils.html import format_html
 
 from .models import (
-    Favorite, Ingredient, Recipe, RecipeIngredient, ShoppingCart, Tag,
+    Favorite,
+    Ingredient,
+    Recipe,
+    RecipeIngredient,
+    ShoppingCart,
+    Tag,
 )
 from .validators import hex_color_validator
 
@@ -106,8 +115,11 @@ class RecipeAdmin(admin.ModelAdmin):
     list_filter = (RecipeAuthorFilter, RecipeNameFilter, RecipeTagFilter)
 
     def get_queryset(self, request):
-        return Recipe.objects.select_related("author").prefetch_related(
-            "ingredients", "tags"
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("author")
+            .prefetch_related("ingredients", "tags")
         )
 
     def display_image(self, obj):
@@ -155,15 +167,28 @@ class TagAdmin(admin.ModelAdmin):
 class RecipeIngredientAdmin(admin.ModelAdmin):
     list_display = ("ingredient", "recipe", "amount")
 
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("ingredient", "recipe")
+        )
+
 
 @admin.register(Favorite)
 class FavoriteAdmin(admin.ModelAdmin):
     list_display = ("user", "recipe")
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("user", "recipe")
+
 
 @admin.register(ShoppingCart)
 class ShoppingCartAdmin(admin.ModelAdmin):
     list_display = ("user", "recipe")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("user", "recipe")
 
 
 admin.site.unregister(TokenProxy)
