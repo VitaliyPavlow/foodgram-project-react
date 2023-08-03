@@ -44,4 +44,6 @@ class RecipeFilter(django_filters.FilterSet):
         url = HttpRequest.get_full_path(self.request)
         matches = re.findall(r"tags=([^&]+)", url)
         tags = [match for match in matches]
-        return queryset.filter(tags__slug__in=tags)
+        if not tags:
+            return queryset.none()
+        return queryset.filter(tags__slug__in=tags).distinct()
