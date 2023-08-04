@@ -4,6 +4,6 @@ python manage.py makemigrations --noinput
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 cp -r collected_static/* backend_static/
-python manage.py import_csv Ingredient data/ingredients.csv
-python manage.py import_csv Tag data/tags.csv
+# python manage.py import_csv Ingredient data/ingredients.csv
+# python manage.py import_csv Tag data/tags.csv
 gunicorn --bind 0.0.0.0:8000 foodgram_backend.wsgi
