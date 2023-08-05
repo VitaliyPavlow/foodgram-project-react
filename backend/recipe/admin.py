@@ -5,12 +5,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from .models import (
-    Favorite,
-    Ingredient,
-    Recipe,
-    RecipeIngredient,
-    ShoppingCart,
-    Tag,
+    Favorite, Ingredient, Recipe, RecipeIngredient, ShoppingCart, Tag,
 )
 from .validators import hex_color_validator
 
@@ -92,8 +87,13 @@ class IngredientFilter(admin.SimpleListFilter):
 
 
 class RecipeIngredientInline(admin.TabularInline):
-    model = RecipeIngredient
+    model = Recipe.ingredients.through
+    min_num = 1
     extra = 1
+    can_delete = False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Recipe)

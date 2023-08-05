@@ -1,29 +1,23 @@
 import datetime
 
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Count
 from djoser.views import UserViewSet
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from rest_framework import filters, generics, serializers, status, viewsets
 from rest_framework.permissions import (
-    IsAuthenticated,
-    IsAuthenticatedOrReadOnly,
+    IsAuthenticated, IsAuthenticatedOrReadOnly,
 )
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 
 from recipe.models import (
-    Favorite,
-    Ingredient,
-    Recipe,
-    RecipeIngredient,
-    ShoppingCart,
-    Tag,
+    Favorite, Ingredient, Recipe, RecipeIngredient, ShoppingCart, Tag,
 )
 from users.models import Subscription, User
 
@@ -31,11 +25,8 @@ from .filters import RecipeFilter
 from .pagination import PageLimitPagination
 from .permissions import IsAuthor
 from .serializers import (
-    IngredientSerializer,
-    RecipeSerializer,
-    RecipeSubscriptionSerializer,
-    SubscriptionsSerializer,
-    TagSerializer,
+    IngredientSerializer, RecipeSerializer, RecipeSubscriptionSerializer,
+    SubscriptionsSerializer, TagSerializer,
 )
 
 

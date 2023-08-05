@@ -111,13 +111,10 @@ class ShoppingCart(models.Model):
 
 class Ingredient(models.Model):
     name = models.CharField(
-        "Ингредиент",
-        max_length=MAX_LENGTH_INGREDIENT_NAME,
-        unique=True
+        "Ингредиент", max_length=MAX_LENGTH_INGREDIENT_NAME
     )
     measurement_unit = models.CharField(
-        "Единица измерения",
-        max_length=MAX_LENGTH_INGREDIENT_MEASUREMENT_UNIT
+        "Единица измерения", max_length=MAX_LENGTH_INGREDIENT_MEASUREMENT_UNIT
     )
 
     class Meta:
