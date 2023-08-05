@@ -63,7 +63,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         tags = Tag.objects.filter(pk__in=tag_pk)
         recipe = serializer.save()
         for ingredient in ingredients_list:
-            amount = ingredient["amount"]
+            amount = int(ingredient["amount"])
             ingredient_obj = get_object_or_404(Ingredient, pk=ingredient["id"])
             RecipeIngredient.objects.create(
                 recipe=recipe, ingredient=ingredient_obj, amount=amount
@@ -83,7 +83,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         ingredients_list = self.request.data.pop("ingredients", [])
         for ingredient in ingredients_list:
-            amount = ingredient["amount"]
+            amount = int(ingredient["amount"])
             if amount < 1:
                 raise serializers.ValidationError(
                     {

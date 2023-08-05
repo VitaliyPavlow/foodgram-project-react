@@ -86,7 +86,7 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
 
     def to_internal_value(self, data):
         pk = data["id"]
-        amount = data["amount"]
+        amount = int(data["amount"])
         ingredient = get_object_or_404(Ingredient, pk=pk)
         data_plus = {
             "ingredient": {
@@ -103,7 +103,7 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
         ingredient_data = representation.pop("ingredient")
         representation.update(ingredient_data)
         amount = representation.pop("amount")
-        representation["amount"] = float(amount)
+        representation["amount"] = int(amount)
         return representation
 
 
