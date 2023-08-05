@@ -3,9 +3,15 @@ from rest_framework import routers
 from django.urls import include, path
 
 from .views import (
-    FavoriteView, IngredientViewSet, RecipeViewSet,
-    ShoppingCartCreateDeleteView, ShoppingCartView, SubscribesListView,
-    SubscribeUnsubscribeView, TagViewSet, UsersListView,
+    FavoriteView,
+    IngredientViewSet,
+    RecipeViewSet,
+    ShoppingCartCreateDeleteView,
+    ShoppingCartView,
+    SubscribesListView,
+    SubscribeUnsubscribeView,
+    TagViewSet,
+    UsersListView,
 )
 
 

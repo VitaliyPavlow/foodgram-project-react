@@ -5,48 +5,10 @@ from django.contrib.auth.models import Group
 from .models import Subscription, User
 
 
-class EmailFilter(admin.SimpleListFilter):
-    title = "Email"
-    parameter_name = "email"
-
-    def lookups(self, request, model_admin):
-        return [
-            (email, email)
-            for email in User.objects.values_list(
-                "email", flat=True
-            ).distinct()
-        ]
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value:
-            return queryset.filter(email=value)
-        return queryset
-
-
-class UsernameFilter(admin.SimpleListFilter):
-    title = "Username"
-    parameter_name = "username"
-
-    def lookups(self, request, model_admin):
-        return [
-            (username, username)
-            for username in User.objects.values_list(
-                "username", flat=True
-            ).distinct()
-        ]
-
-    def queryset(self, request, queryset):
-        value = self.value()
-        if value:
-            return queryset.filter(username=value)
-        return queryset
-
-
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     list_display = ("username", "id", "email", "first_name", "last_name")
-    list_filter = (EmailFilter, UsernameFilter)
+    search_fields = ["username", "email"]
     fieldsets = (
         (
             "Информация о пользователе",

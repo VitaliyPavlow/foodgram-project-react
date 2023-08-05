@@ -1,7 +1,9 @@
 import base64
 
 from djoser.serializers import (
-    TokenCreateSerializer, UserCreateSerializer, UserSerializer,
+    TokenCreateSerializer,
+    UserCreateSerializer,
+    UserSerializer,
 )
 from rest_framework import serializers
 
