@@ -57,7 +57,7 @@ class RecipeAdmin(admin.ModelAdmin):
     )
     inlines = [RecipeIngredientInline]
     search_fields = ["name"]
-    list_filter = ("author", "name", RecipeTagFilter)
+    list_filter = ("author", RecipeTagFilter)
 
     def get_queryset(self, request):
         return (
@@ -102,6 +102,7 @@ class TagAdminForm(forms.ModelForm):
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
     list_display = ("name", "color", "slug")
+    search_fields = ["name"]
     form = TagAdminForm
 
 
