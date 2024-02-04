@@ -17,8 +17,8 @@ ip: 84.252.142.141 <br>
 Cейчас проект не доступен в интернете, но его можно развернуть локально.
 
 ## Учетная запись администратора
-username: admin
-email: admin@admin.ru
+username: admin <br>
+email: admin@admin.ru <br>
 password: 1234_4321q
 
 ## Установка
